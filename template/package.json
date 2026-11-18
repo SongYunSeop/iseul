@@ -1,0 +1,23 @@
+{
+  "name": "iseul-comments",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy"
+  },
+  "dependencies": {
+    "iseul": "github:SongYunSeop/iseul#v0.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.164.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "TURNSTILE_SECRET": { "description": "Secret key of a [Turnstile widget](https://dash.cloudflare.com/?to=/:account/turnstile) whose hostnames include the sites that show comments." },
+      "ADMIN_TOKEN": { "description": "Any long random string (for example `openssl rand -hex 32`). You enter it on `/admin` to moderate." },
+      "ALLOWED_ORIGINS": { "description": "Sites that embed the comments, comma separated, for example `https://blog.example.com,https://example.com`." },
+      "WEBHOOK_CONTENT": { "description": "`true` puts the name and body into `WEBHOOK_URL` notifications. Add the `WEBHOOK_URL` secret later in Settings to get them." }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+// iseul as a standalone Worker: comments API, moderation page, and the embed files other sites load.
+{
+  "name": "iseul",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  // The embed/widget/admin modules are served straight from the installed package.
+  "assets": { "directory": "node_modules/iseul/src", "binding": "ASSETS", "run_worker_first": true },
+  // No database_id: created on first deploy. Migrations ship with the iseul package.
+  "d1_databases": [{ "binding": "DB", "database_name": "iseul", "migrations_dir": "node_modules/iseul/migrations" }],
+  "vars": {
+    "ALLOWED_ORIGINS": "",
+    "WEBHOOK_CONTENT": "false"
+  }
+}

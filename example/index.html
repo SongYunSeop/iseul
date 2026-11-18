@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iseul demo</title>
+  <link rel="stylesheet" href="/src/widget.css">
+  <style>:root { color-scheme: light dark; background: Canvas; color: CanvasText; } body { max-width: 680px; margin: 40px auto; padding: 0 16px; font: 17px/1.7 system-ui, sans-serif; }</style>
+</head>
+<body>
+  <h1>iseul demo</h1>
+  <p>Turnstile 테스트 키를 쓰므로 자동 확인이 항상 통과합니다. <a href="?lang=en">English</a></p>
+  <div id="comments"></div>
+  <script type="module">
+    import { mount } from '/src/widget.js';
+    mount('#comments', { siteKey: '1x00000000000000000000AA', lang: new URLSearchParams(location.search).get('lang') ?? 'ko' });
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Local demo only. Turnstile and admin values are Cloudflare's always-pass test keys and a throwaway token.
+name = "iseul-example"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+assets = { directory = "..", binding = "ASSETS" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "iseul"
+database_id = "local"
+
+[vars]
+TURNSTILE_SECRET = "1x0000000000000000000000000000000AA"
+ADMIN_TOKEN = "dev-admin-token"

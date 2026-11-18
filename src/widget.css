@@ -1,0 +1,104 @@
+/* iseul widget. Colors follow the surrounding text color; override the --iseul-* variables on .iseul to match your site. */
+.iseul {
+  --iseul-ink: currentColor;
+  --iseul-muted: color-mix(in srgb, var(--iseul-ink) 60%, transparent);
+  --iseul-line: color-mix(in srgb, var(--iseul-ink) 15%, transparent);
+  --iseul-accent: #2f6fdb;
+  border-top: 1px solid var(--iseul-line);
+  margin-top: 40px;
+  padding-top: 28px;
+}
+.iseul h2 { font-size: 1.4em; margin: 0 0 20px; }
+.iseul .count { color: var(--iseul-muted); font-weight: 400; }
+.iseul ol { list-style: none; margin: 0 0 32px; padding: 0; }
+.iseul li { padding: 16px 0; border-bottom: 1px solid var(--iseul-line); }
+.iseul li .meta { margin: 0 0 6px; color: var(--iseul-muted); font-size: 14px; }
+.iseul li strong { color: var(--iseul-ink); font-weight: 600; }
+.iseul .body { margin: 0; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.iseul form { display: grid; gap: 14px; }
+.iseul .row { display: flex; flex-wrap: wrap; gap: 14px; }
+.iseul .row label { flex: 1 1 160px; }
+.iseul label { display: grid; gap: 6px; font-size: 14px; color: var(--iseul-muted); }
+.iseul input, .iseul select, .iseul textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid var(--iseul-muted); border-radius: 0; background: transparent; color: var(--iseul-ink); font: inherit; font-size: 16px; }
+.iseul textarea { resize: vertical; line-height: 1.7; }
+.iseul .note, .iseul .status { margin: 0; color: var(--iseul-muted); font-size: 13px; }
+.iseul .status:empty { display: none; }
+.iseul button { justify-self: start; padding: 12px 20px; border: 1px solid var(--iseul-ink); color: var(--iseul-ink); background: transparent; font: inherit; cursor: pointer; }
+.iseul button:hover { color: var(--iseul-accent); border-color: var(--iseul-accent); }
+.iseul button:disabled { opacity: .5; cursor: wait; }
+.iseul button.link { padding: 0 2px; border: 0; background: none; color: var(--iseul-muted); font-size: 13px; text-decoration: underline; text-underline-offset: .25em; }
+.iseul button.link:hover { color: var(--iseul-accent); }
+.iseul .manage { margin-top: 12px; }
+.iseul .actions { display: flex; gap: 8px; }
+.iseul button.secondary { border-color: var(--iseul-line); }
+.iseul :focus-visible { outline: 2px solid var(--iseul-accent); outline-offset: 4px; }
+.iseul [hidden] { display: none !important; }
+.iseul .badge { display: inline-block; padding: 0 8px; border-radius: 999px; color: var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 12%, transparent); font-size: 12px; font-weight: 600; line-height: 1.8; }
+.iseul .body a { color: var(--iseul-accent); overflow-wrap: anywhere; }
+.iseul ol.replies { margin: 12px 0 0; padding-left: 20px; border-left: 2px solid var(--iseul-line); }
+.iseul ol.replies li { padding: 10px 0; }
+.iseul ol.replies li:last-child { border-bottom: 0; padding-bottom: 0; }
+.iseul .reactions { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 0; }
+.iseul button.reaction { padding: 2px 8px; border: 1px solid transparent; border-radius: 999px; color: var(--iseul-ink); background: none; font-size: 13px; line-height: 1.6; opacity: .45; }
+.iseul button.reaction.counted, .iseul button.reaction:hover { opacity: 1; border-color: var(--iseul-line); background: none; color: var(--iseul-ink); }
+.iseul button.reaction[aria-pressed=true] { opacity: 1; border-color: var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 10%, transparent); }
+.iseul label.check { display: flex; align-items: center; gap: 8px; color: var(--iseul-ink); cursor: pointer; }
+.iseul .body.secret { color: var(--iseul-muted); font-style: italic; }
+.iseul .badge.secret { color: var(--iseul-muted); background: color-mix(in srgb, var(--iseul-ink) 8%, transparent); }
+.iseul .replying { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-left: 3px solid var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 8%, transparent); font-size: 14px; }
+.iseul input[type=checkbox] { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--iseul-accent); cursor: pointer; }
+
+/* iseul/admin */
+.iseul-admin {
+  --iseul-surface: color-mix(in srgb, var(--iseul-ink) 4%, transparent);
+  --iseul-danger: #d64545;
+  --iseul-radius: 12px;
+  border-top: 0; margin-top: 0; padding-top: 0;
+}
+.iseul-admin .head { padding: 0; border: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
+.iseul-admin .head h2 { margin: 0; }
+.iseul-admin .summary { margin: 0; color: var(--iseul-muted); font-size: 14px; }
+.iseul-admin .summary b { color: var(--iseul-ink); font-weight: 600; }
+.iseul-admin input:not([type=checkbox]), .iseul-admin select { padding: 10px 12px; border-color: var(--iseul-line); border-radius: 8px; background: var(--iseul-surface); }
+.iseul-admin input:focus, .iseul-admin select:focus { border-color: var(--iseul-accent); outline: none; }
+.iseul-admin button { padding: 10px 16px; border-radius: 8px; }
+.iseul-admin .token, .iseul-admin .tools { padding: 16px; border: 1px solid var(--iseul-line); border-radius: var(--iseul-radius); background: var(--iseul-surface); }
+.iseul-admin .token { max-width: 380px; }
+.iseul-admin .tools { display: grid; gap: 12px; margin-bottom: 16px; }
+.iseul-admin .filter { display: flex; flex-wrap: wrap; gap: 8px; }
+.iseul-admin .filter select { flex: 1 1 150px; width: auto; }
+.iseul-admin .filter input { flex: 3 1 220px; width: auto; }
+.iseul-admin .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.iseul-admin .bulk .spacer { flex: 1; }
+.iseul-admin .bulk button.export { text-decoration: none; }
+.iseul-admin .reply-form { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--iseul-line); }
+.iseul-admin label.pick { display: flex; align-items: center; gap: 8px; color: var(--iseul-ink); cursor: pointer; }
+.iseul-admin .remove-selected { padding: 6px 14px; color: var(--iseul-danger); border-color: currentColor; font-size: 14px; }
+.iseul-admin .remove-selected:hover { color: #fff; background: var(--iseul-danger); border-color: var(--iseul-danger); }
+.iseul-admin .remove-selected:disabled { color: var(--iseul-muted); background: transparent; border-color: var(--iseul-line); opacity: 1; cursor: default; }
+.iseul-admin .status.empty { padding: 48px 16px; border: 1px dashed var(--iseul-line); border-radius: var(--iseul-radius); text-align: center; font-size: 15px; }
+.iseul-admin ol.cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.iseul-admin li.card { display: grid; grid-template-columns: auto auto 1fr auto; align-items: start; gap: 14px; padding: 16px; border: 1px solid var(--iseul-line); border-radius: var(--iseul-radius); transition: border-color .15s, background-color .15s; }
+.iseul-admin li.card:hover { border-color: color-mix(in srgb, var(--iseul-ink) 30%, transparent); }
+.iseul-admin li.card:has(input:checked) { border-color: var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 7%, transparent); }
+.iseul-admin li.card.gone { border-style: dashed; }
+.iseul-admin li.card.gone .main, .iseul-admin li.card.gone .avatar { opacity: .55; }
+.iseul-admin .card > input { margin-top: 10px; }
+.iseul-admin .avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: #fff; background: oklch(0.56 0.14 var(--hue, 250)); font-size: 15px; font-weight: 600; }
+.iseul-admin .card .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0 0 2px; font-size: 14px; }
+.iseul-admin .card strong { color: var(--iseul-ink); }
+.iseul-admin .card .body { margin: 0 0 10px; }
+.iseul-admin .foot { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.iseul-admin .chip, .iseul-admin .pill { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px; font-size: 12px; line-height: 1.9; text-decoration: none; }
+.iseul-admin .chip { color: var(--iseul-ink); border: 1px solid var(--iseul-line); }
+.iseul-admin a.chip:hover { color: var(--iseul-accent); border-color: var(--iseul-accent); }
+.iseul-admin .pill { color: var(--iseul-muted); background: var(--iseul-surface); }
+.iseul-admin .pill.soon { color: #d97706; background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.iseul-admin .pill.forever { color: var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 12%, transparent); }
+.iseul-admin .side { display: grid; justify-items: end; gap: 6px; margin-top: 6px; }
+.iseul-admin .side button.link { text-decoration: none; }
+.iseul-admin .card .delete:hover { color: var(--iseul-danger); }
+@media (max-width: 540px) {
+  .iseul-admin li.card { grid-template-columns: auto 1fr auto; gap: 10px; }
+  .iseul-admin .avatar { display: none; }
+}

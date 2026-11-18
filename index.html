@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iseul</title>
+<meta name="description" content="Comments that settle for a while, then are gone. Try the real widget and admin page right in your browser.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="src/widget.css">
+<meta property="og:title" content="iseul">
+<meta property="og:description" content="Login-free comments that fade. Try the real widget and admin page right in your browser.">
+<style>
+  :root { color-scheme: light; --paper: #f6f7f5; --sheet: #fcfcfb; --ink: #1e2927; --muted: #5d6966; --line: rgba(30, 41, 39, .14); --accent: #3a7181; }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; --paper: #121716; --sheet: #171d1c; --ink: #e3e8e6; --muted: #98a4a1; --line: rgba(227, 232, 230, .14); --accent: #8fc3cf; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); background: var(--paper); font: 16px/1.7 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+  .wrap { width: min(1080px, calc(100% - 32px)); margin-inline: auto; }
+  a { color: var(--accent); text-underline-offset: 4px; }
+  .text a { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 4px; }
+  .text a:hover { color: var(--accent); text-decoration-color: currentColor; }
+
+  .hero { padding: clamp(72px, 14vw, 168px) 0 clamp(8px, 4vw, 48px); }
+  .wordmark { margin: 0; font-size: clamp(46px, 7vw, 64px); font-weight: 500; letter-spacing: -.04em; line-height: 1; }
+  .wordmark small { margin-left: .3em; font-size: .3em; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+  /* The one dew motif: a drop beside the name that stays for a while, fades, and comes back. */
+  .wordmark .logo { width: .7em; height: .7em; margin-right: .16em; vertical-align: -.04em; color: var(--accent); animation: dew 14s ease-in-out infinite; }
+  @keyframes dew { 0%, 60%, 100% { opacity: 1; } 80%, 88% { opacity: .15; } }
+  @media (prefers-reduced-motion: reduce) { .wordmark .logo { animation: none; } }
+  .tagline { margin: clamp(28px, 4vw, 44px) 0 0; font-size: clamp(21px, 2.8vw, 28px); font-weight: 500; letter-spacing: -.02em; line-height: 1.4; text-wrap: balance; }
+  .lead { margin: 10px 0 0; max-width: 34em; color: var(--muted); }
+  .links, .links .text { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; }
+  .links { margin: 32px 0 0; font-size: 15px; }
+  .btn { padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--ink); font: inherit; font-size: 14px; text-decoration: none; cursor: pointer; }
+  .btn:hover { border-color: var(--ink); }
+  .btn-solid { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .btn-solid:hover { opacity: .85; }
+  :is(.btn, .lang, .text a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .sec { padding-top: clamp(72px, 11vw, 128px); }
+  .sec-title { margin: 0 0 6px; font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
+  .sec-sub { margin: 0 0 28px; max-width: 42em; color: var(--muted); }
+  .sec-sub code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .clock { margin-right: 8px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .grow { flex: 1; }
+  @media (max-width: 600px) { .clock { flex-basis: 100%; } }
+  .lang { padding: 4px 2px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+  .langs { display: flex; gap: 12px; }
+  .lang[aria-pressed=true] { color: var(--ink); text-decoration: underline; text-underline-offset: 6px; }
+  .demo { display: grid; gap: 16px; }
+  @media (min-width: 960px) { .demo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+  .panel { min-width: 0; padding: clamp(18px, 3vw, 28px); border: 1px solid var(--line); border-radius: 12px; background: var(--sheet); }
+  .panel-label { margin: 0 0 14px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .post-title { margin: 0 0 6px; font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
+  .post-text { margin: 0; color: var(--muted); }
+  .loading { margin: 24px 0 0; color: var(--muted); }
+  .panel .iseul { --iseul-ink: var(--ink); --iseul-muted: var(--muted); --iseul-line: var(--line); --iseul-accent: var(--accent); }
+  .panel .iseul:not(.iseul-admin) { margin-top: 24px; }
+  .panel .iseul :is(input, select, textarea) { border-color: color-mix(in srgb, var(--ink) 35%, transparent); border-radius: 8px; }
+  .panel .iseul :is(input, select, textarea):focus { border-color: var(--accent); }
+  .panel .iseul :is(input, select, textarea, button):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .panel .iseul button:not(.link, .reaction) { border-radius: 8px; }
+
+  .gets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0 40px; margin: 0; }
+  .gets div { padding: 18px 0 22px; border-top: 1px solid var(--line); }
+  .gets dt { font-weight: 600; }
+  .gets dd { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+
+  .code { margin: 0; padding: 18px 20px; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--sheet); line-height: 1.7; }
+  .code code { font: inherit; }
+  .code .c { color: var(--muted); }
+  .after { margin: 16px 0 0; }
+
+  .colophon { padding: clamp(72px, 11vw, 128px) 0 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="hero wrap">
+  <h1 class="wordmark"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C16 3 6 14.5 6 20.5a10 10 0 0 0 20 0C26 14.5 16 3 16 3z" fill="currentColor"/><ellipse cx="12.5" cy="20" rx="2.2" ry="3.4" fill="#fff" opacity=".55"/></svg>iseul <small lang="ko">이슬</small></h1>
+  <p class="tagline">Comments that settle for a while, then are gone.</p>
+  <p class="lead">Each commenter picks how long theirs stays on the page: a day, a week, a month, a year, or forever. No accounts.</p>
+  <p class="links"><a class="btn btn-solid" href="#try">Try it</a><span class="text"><a href="https://github.com/SongYunSeop/iseul">GitHub</a><a href="https://github.com/SongYunSeop/iseul/blob/main/README.ko.md" lang="ko">한국어 README</a></span></p>
+</header>
+
+<section class="sec wrap" id="try">
+  <h2 class="sec-title">Try it</h2>
+  <p class="sec-sub">This is the real widget, admin page, and server code, running in your browser over an in-memory SQLite. Nothing leaves this page, and a reload starts over. Skip ahead in time to watch comments fade.</p>
+  <div class="bar">
+    <span class="clock" id="clock"></span>
+    <button type="button" class="btn btn-solid" id="skip">Skip ahead a day</button>
+    <button type="button" class="btn" id="now">Back to now</button>
+    <span class="grow"></span>
+    <span class="langs"><button type="button" class="lang" data-lang="en" aria-pressed="true">English</button><button type="button" class="lang" data-lang="ko" aria-pressed="false" lang="ko">한국어</button></span>
+  </div>
+  <div class="demo">
+    <div class="panel">
+      <p class="panel-label">A post</p>
+      <p class="post-title">A walk before the rain</p>
+      <p class="post-text">Leave a comment, reply, react, then edit or delete it with your password.</p>
+      <div id="comments"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Admin page</p>
+      <div id="admin"><p class="loading">Loading…</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec wrap">
+  <h2 class="sec-title">What you get</h2>
+  <p class="sec-sub">Small on purpose. No dependencies; the widget is about 8 KB gzipped.</p>
+  <dl class="gets">
+    <div><dt>Comments that fade</dt><dd>The author picks a lifetime. Replies never outlast the comment they answer.</dd></div>
+    <div><dt>No accounts</dt><dd>A name is optional. A password set when posting lets the author edit or delete later.</dd></div>
+    <div><dt>Little data</dt><dd>No IP, no email, no tracking. Faded and deleted comments stay in your database for moderation.</dd></div>
+    <div><dt>Replies and reactions</dt><dd>One level of replies, emoji reactions (your own set, or none), author replies with a badge, and optional private comments.</dd></div>
+    <div><dt>Moderation page</dt><dd>Filter by page and state, search, delete in bulk, reply as the author, export JSON or CSV.</dd></div>
+    <div><dt>Runs on Cloudflare</dt><dd>Workers or Pages Functions, D1, and Turnstile, within the free tier. Optional Slack or Discord webhook.</dd></div>
+  </dl>
+</section>
+
+<section class="sec wrap">
+  <h2 class="sec-title">Use it</h2>
+  <p class="sec-sub">Create a D1 database from <code>migrations/0001_init.sql</code> and a Turnstile widget, then:</p>
+  <pre class="code"><code>npm install github:SongYunSeop/iseul
+
+<span class="c">// functions/api/comments.js (Pages Function)</span>
+import { createHandler } from 'iseul/server';
+export const onRequest = createHandler();
+
+<span class="c">// your page</span>
+import { mount } from 'iseul/widget';
+import 'iseul/widget.css';
+mount('#comments', { siteKey: '&lt;turnstile site key&gt;', lang: 'en' });</code></pre>
+  <p class="sec-sub after text">Or skip the code: <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/SongYunSeop/iseul/tree/main/template">deploy to Cloudflare</a> and paste two lines into your pages. Admin page, client API, webhooks, and options: see the <a href="https://github.com/SongYunSeop/iseul#readme">README</a>.</p>
+</section>
+
+<footer class="colophon wrap text">MIT · <a href="https://github.com/SongYunSeop/iseul">github.com/SongYunSeop/iseul</a></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js"></script>
+<script type="module">
+// Demo wiring: the real iseul server runs here against sql.js; fetch to ./demo-api is routed to it,
+// Turnstile is stubbed, and Date is shifted by the "skip ahead" control.
+const RealDate = Date;
+let offset = 0;
+globalThis.Date = class extends RealDate {
+  constructor(...args) { args.length ? super(...args) : super(RealDate.now() + offset); }
+  static now() { return RealDate.now() + offset; }
+};
+window.turnstile = { render: () => 'demo', getResponse: () => 'demo', reset() {} };
+
+const [{ createHandler }, { createClient }, { mount }, { mountAdmin }, SQL, schema] = await Promise.all([
+  import('./src/server.js'), import('./src/client.js'), import('./src/widget.js'), import('./src/admin.js'),
+  initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}` }),
+  fetch('migrations/0001_init.sql').then(r => r.text()),
+]);
+
+// Minimal D1 surface (prepare/bind/first/all/run) over sql.js.
+const db = new SQL.Database();
+db.run(schema);
+const rows = (sql, args) => {
+  const statement = db.prepare(sql);
+  statement.bind(args);
+  const out = [];
+  while (statement.step()) out.push(statement.getAsObject());
+  statement.free();
+  return out;
+};
+const query = (sql, args = []) => ({
+  all: async () => ({ results: rows(sql, args) }),
+  first: async () => rows(sql, args)[0] ?? null,
+  run: async () => { rows(sql, args); return { meta: { last_row_id: db.exec('SELECT last_insert_rowid()')[0].values[0][0] } }; },
+});
+const env = { DB: { prepare: sql => ({ ...query(sql), bind: (...args) => query(sql, args) }) }, TURNSTILE_SECRET: 'demo' };
+const handler = createHandler({ isAdmin: () => true });
+
+const endpoint = new URL('demo-api', location.href).pathname;
+const realFetch = window.fetch.bind(window);
+let showWidget = () => {}, showAdmin = () => {};
+window.fetch = async (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : input, location.href);
+  if (url.hostname === 'challenges.cloudflare.com') return Response.json({ success: true });
+  if (url.pathname !== endpoint) return realFetch(input, init);
+  const response = await handler(new Request(url, init), env);
+  // A write on one side refreshes the other side's view.
+  if ((init?.method ?? 'GET') !== 'GET') setTimeout(url.searchParams.has('admin') ? showWidget : showAdmin);
+  return response;
+};
+
+// A few comments to start with, spread over the last days.
+const slug = '/posts/walk-before-the-rain';
+const api = createClient(endpoint);
+const seed = [ // name, body, keep, days ago
+  ['Mina', 'Lovely piece. The part about the smell of rain stayed with me.', 'forever', 3],
+  ['', 'Read this on the bus, thank you.', 'week', 2],
+  ['봄비', '비 오기 전 산책 좋아해요. 오늘 저녁에 나가 봐야겠어요.', 'day', 0.9],
+];
+for (const [name, body, keep] of seed) await api.post({ slug, name, body, keep, password: '1234', turnstile: 'demo' });
+await api.post({ slug, parent: 1, name: 'Jun', body: 'Same here!', keep: 'month', password: '1234', turnstile: 'demo' });
+await api.admin.post({ parent: 1, name: '', body: 'Thank you for reading 🙂' });
+await api.post({ slug, name: 'Hana', body: 'Could I quote this in my newsletter? hana@example.com', keep: 'week', password: '1234', turnstile: 'demo', secret: true });
+await api.react({ id: 1, emoji: '❤️' });
+await api.react({ id: 1, emoji: '👍' });
+await api.react({ id: 2, emoji: '👍' });
+seed.forEach(([, , , daysAgo], i) => {
+  const back = iso => iso && new RealDate(new RealDate(iso) - daysAgo * 864e5).toISOString();
+  const [row] = rows('SELECT created_at, expires_at FROM comments WHERE id = ?', [i + 1]);
+  db.run('UPDATE comments SET created_at = ?, expires_at = ? WHERE id = ?', [back(row.created_at), back(row.expires_at), i + 1]);
+});
+
+let lang = 'en';
+const clock = document.getElementById('clock');
+showWidget = () => mount('#comments', { endpoint, slug, lang, siteKey: 'demo', secret: true });
+showAdmin = () => mountAdmin('#admin', { endpoint, lang });
+function render() {
+  const days = offset / 864e5;
+  clock.textContent = new Date().toLocaleString(lang, { dateStyle: 'medium', timeStyle: 'short' }) + (days ? (lang === 'ko' ? ` (+${days}일)` : ` (+${days} day${days > 1 ? 's' : ''})`) : '');
+  showWidget();
+  showAdmin();
+}
+document.getElementById('skip').addEventListener('click', () => { offset += 864e5; render(); });
+document.getElementById('now').addEventListener('click', () => { offset = 0; render(); });
+document.querySelectorAll('[data-lang]').forEach(button => button.addEventListener('click', () => {
+  lang = button.dataset.lang;
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+  render();
+}));
+render();
+</script>
+</body>
+</html>

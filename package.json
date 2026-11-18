@@ -1,0 +1,38 @@
+{
+  "name": "iseul",
+  "version": "0.1.0",
+  "description": "Login-free comments that fade away when their time is up. Cloudflare Workers/Pages + D1 + Turnstile.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SongYunSeop/iseul.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SongYunSeop/iseul/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.js",
+    "./client": "./src/client.js",
+    "./widget": "./src/widget.js",
+    "./admin": "./src/admin.js",
+    "./widget.css": "./src/widget.css",
+    "./embed": "./src/embed.js",
+    "./migrations/0001_init.sql": "./migrations/0001_init.sql"
+  },
+  "files": [
+    "src",
+    "migrations"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "comments",
+    "cloudflare",
+    "workers",
+    "d1",
+    "turnstile",
+    "blog"
+  ]
+}

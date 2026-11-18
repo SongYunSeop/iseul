@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iseul admin demo</title>
+  <link rel="stylesheet" href="/src/widget.css">
+  <style>:root { color-scheme: light dark; background: Canvas; color: CanvasText; } body { max-width: 760px; margin: 40px auto; padding: 0 16px; font: 17px/1.7 system-ui, sans-serif; }</style>
+</head>
+<body>
+  <p>데모 관리자 토큰: <code>dev-admin-token</code> · <a href="/example/">댓글 데모</a></p>
+  <div id="admin"></div>
+  <script type="module">
+    import { mountAdmin } from '/src/admin.js';
+    mountAdmin('#admin', { lang: new URLSearchParams(location.search).get('lang') ?? 'ko' });
+  </script>
+</body>
+</html>
