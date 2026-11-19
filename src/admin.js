@@ -39,12 +39,14 @@ const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 
 const nameKey = 'iseul-admin-name';
 const remembered = () => { try { return localStorage.getItem(nameKey) ?? ''; } catch { return ''; } };
 const remember = name => { try { localStorage.setItem(nameKey, name); } catch {} };
-const csvColumns = ['id', 'slug', 'parent_id', 'name', 'body', 'admin', 'secret', 'reactions', 'created_at', 'expires_at', 'deleted_at', 'deleted_by'];
+const csvColumns = ['id', 'slug', 'parent_id', 'name', 'body', 'admin', 'secret', 'quote', 'reactions', 'created_at', 'expires_at', 'deleted_at', 'deleted_by'];
 // Quotes every cell; a leading = + - @ gets a ' so spreadsheets do not run visitor text as a formula.
 const csvCell = value => `"${String(value && typeof value === 'object' ? JSON.stringify(value) : value ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
 const hue = text => [...text].reduce((sum, c) => sum + c.codePointAt(0), 0) * 47 % 360;
 
-export function mountAdmin(target, { endpoint = '/api/comments', lang = 'ko' } = {}) {
+// site: where the commented pages live, for page links (default: this page's origin; set it when the admin runs elsewhere,
+// like the Worker of the Deploy template).
+export function mountAdmin(target, { endpoint = '/api/comments', lang = 'ko', site = location.origin } = {}) {
   const t = strings[lang] ?? strings.en;
   const root = typeof target === 'string' ? document.querySelector(target) : target;
   const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
@@ -149,9 +151,10 @@ export function mountAdmin(target, { endpoint = '/api/comments', lang = 'ko' } =
     time.title = full(comment.created_at);
     time.setAttribute('datetime', comment.created_at);
     linkify(li.querySelector('.body'), comment.body);
+    if (comment.quote) li.querySelector('.body').before(Object.assign(document.createElement('blockquote'), { className: 'quote', textContent: comment.quote.text }));
     const page = li.querySelector('.chip');
     page.textContent = comment.slug;
-    if (/^\/(?![/\\])/.test(comment.slug)) page.href = comment.slug; // same-site paths only, never //host
+    if (/^\/(?![/\\])[^\0-\x1f\x7f]*$/.test(comment.slug)) page.href = new URL(comment.slug, site).href; // same-site paths only, never //host
     const pill = li.querySelector('.pill');
     if (comment.deleted_at) {
       pill.textContent = t.deleted(comment.deleted_by, relative(comment.deleted_at));

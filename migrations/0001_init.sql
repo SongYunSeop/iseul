@@ -1,5 +1,6 @@
 -- D1 migration. Apply with `wrangler d1 migrations apply DB` (migrations_dir: node_modules/iseul/migrations)
--- or once with `wrangler d1 execute <database> --remote --file node_modules/iseul/migrations/0001_init.sql`.
+-- or by hand with `wrangler d1 execute <database> --remote --file <file>` for each file in order (0001, 0002, ...).
+-- Pick one way and keep it: `migrations apply` does not know about files run by hand and would run them again.
 CREATE TABLE IF NOT EXISTS comments (
   id INTEGER PRIMARY KEY,
   slug TEXT NOT NULL,

@@ -57,8 +57,10 @@
   .panel-label { margin: 0 0 14px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
   .post-title { margin: 0 0 6px; font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
   .post-text { margin: 0; color: var(--muted); }
+  #post { margin: 0 0 12px; } #post p { margin: 0 0 8px; }
+  @media (min-width: 600px) { #post { margin-right: 64px; } } /* room for the quote badges */
   .loading { margin: 24px 0 0; color: var(--muted); }
-  .panel .iseul { --iseul-ink: var(--ink); --iseul-muted: var(--muted); --iseul-line: var(--line); --iseul-accent: var(--accent); }
+  .panel .iseul { --iseul-ink: var(--ink); --iseul-muted: var(--muted); --iseul-line: var(--line); --iseul-accent: var(--accent); --iseul-quote-ink: var(--sheet); }
   .panel .iseul:not(.iseul-admin) { margin-top: 24px; }
   .panel .iseul :is(input, select, textarea) { border-color: color-mix(in srgb, var(--ink) 35%, transparent); border-radius: 8px; }
   .panel .iseul :is(input, select, textarea):focus { border-color: var(--accent); }
@@ -100,7 +102,8 @@
     <div class="panel">
       <p class="panel-label">A post</p>
       <p class="post-title">A walk before the rain</p>
-      <p class="post-text">Leave a comment, reply, react, then edit or delete it with your password.</p>
+      <div id="post"><p>We went out just before the rain. The air smelled of wet stone and cut grass, and everyone on the street walked a little faster.</p><p>By the time we reached the river, the first drops were falling.</p></div>
+      <p class="post-text">Leave a comment, reply, react, then edit or delete it with your password. Select a sentence in the post to quote it.</p>
       <div id="comments"><p class="loading">Loading…</p></div>
     </div>
     <div class="panel">
@@ -112,12 +115,13 @@
 
 <section class="sec wrap">
   <h2 class="sec-title">What you get</h2>
-  <p class="sec-sub">Small on purpose. No dependencies; the widget is about 8 KB gzipped.</p>
+  <p class="sec-sub">Small on purpose. No dependencies; the widget is about 15 KB gzipped.</p>
   <dl class="gets">
     <div><dt>Comments that fade</dt><dd>The author picks a lifetime. Replies never outlast the comment they answer.</dd></div>
     <div><dt>No accounts</dt><dd>A name is optional. A password set when posting lets the author edit or delete later.</dd></div>
     <div><dt>Little data</dt><dd>No IP, no email, no tracking. Faded and deleted comments stay in your database for moderation.</dd></div>
     <div><dt>Replies and reactions</dt><dd>One level of replies, emoji reactions (your own set, or none), author replies with a badge, and optional private comments.</dd></div>
+    <div><dt>Quote comments</dt><dd>Optional: readers select a sentence to comment on it. Quoted passages can be highlighted, with comment counts in the margin.</dd></div>
     <div><dt>Moderation page</dt><dd>Filter by page and state, search, delete in bulk, reply as the author, export JSON or CSV.</dd></div>
     <div><dt>Runs on Cloudflare</dt><dd>Workers or Pages Functions, D1, and Turnstile, within the free tier. Optional Slack or Discord webhook.</dd></div>
   </dl>
@@ -125,7 +129,7 @@
 
 <section class="sec wrap">
   <h2 class="sec-title">Use it</h2>
-  <p class="sec-sub">Create a D1 database from <code>migrations/0001_init.sql</code> and a Turnstile widget, then:</p>
+  <p class="sec-sub">Create a D1 database with the files in <code>migrations/</code> and a Turnstile widget, then:</p>
   <pre class="code"><code>npm install github:SongYunSeop/iseul
 
 <span class="c">// functions/api/comments.js (Pages Function)</span>
@@ -156,7 +160,7 @@ window.turnstile = { render: () => 'demo', getResponse: () => 'demo', reset() {}
 const [{ createHandler }, { createClient }, { mount }, { mountAdmin }, SQL, schema] = await Promise.all([
   import('./src/server.js'), import('./src/client.js'), import('./src/widget.js'), import('./src/admin.js'),
   initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}` }),
-  fetch('migrations/0001_init.sql').then(r => r.text()),
+  Promise.all(['0001_init', '0002_quote'].map(name => fetch(`migrations/${name}.sql`).then(r => r.text()))).then(files => files.join('\n')),
 ]);
 
 // Minimal D1 surface (prepare/bind/first/all/run) over sql.js.
@@ -194,12 +198,12 @@ window.fetch = async (input, init) => {
 // A few comments to start with, spread over the last days.
 const slug = '/posts/walk-before-the-rain';
 const api = createClient(endpoint);
-const seed = [ // name, body, keep, days ago
-  ['Mina', 'Lovely piece. The part about the smell of rain stayed with me.', 'forever', 3],
+const seed = [ // name, body, keep, days ago, quoted sentence
+  ['Mina', 'Lovely piece. This line stayed with me.', 'forever', 3, 'The air smelled of wet stone and cut grass'],
   ['', 'Read this on the bus, thank you.', 'week', 2],
   ['봄비', '비 오기 전 산책 좋아해요. 오늘 저녁에 나가 봐야겠어요.', 'day', 0.9],
 ];
-for (const [name, body, keep] of seed) await api.post({ slug, name, body, keep, password: '1234', turnstile: 'demo' });
+for (const [name, body, keep, , quote] of seed) await api.post({ slug, name, body, keep, password: '1234', turnstile: 'demo', ...(quote && { quote: { text: quote } }) });
 await api.post({ slug, parent: 1, name: 'Jun', body: 'Same here!', keep: 'month', password: '1234', turnstile: 'demo' });
 await api.admin.post({ parent: 1, name: '', body: 'Thank you for reading 🙂' });
 await api.post({ slug, name: 'Hana', body: 'Could I quote this in my newsletter? hana@example.com', keep: 'week', password: '1234', turnstile: 'demo', secret: true });
@@ -214,7 +218,8 @@ seed.forEach(([, , , daysAgo], i) => {
 
 let lang = 'en';
 const clock = document.getElementById('clock');
-showWidget = () => mount('#comments', { endpoint, slug, lang, siteKey: 'demo', secret: true });
+let unmount = () => {};
+showWidget = () => { unmount(); unmount = mount('#comments', { endpoint, slug, lang, siteKey: 'demo', secret: true, quote: '#post', quoteMarks: true }); };
 showAdmin = () => mountAdmin('#admin', { endpoint, lang });
 function render() {
   const days = offset / 864e5;

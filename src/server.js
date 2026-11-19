@@ -65,10 +65,20 @@ export async function accessAdmin(request, env) {
 // Any single standard emoji is accepted as a reaction; the widget's mount({ reactions }) decides which ones to offer.
 // ponytail: no cap on distinct emoji per comment (bounded by the ~3,700 RGI emoji and the rate limit); add one if abused.
 const oneEmoji = new RegExp('^\\p{RGI_Emoji}$', 'v'); // constructor, so bundlers leave the v flag alone
-const columns = 'id, slug, parent_id, name, body, admin, secret, reactions, created_at, expires_at, deleted_at, deleted_by';
-// Public reads never carry a secret comment's name, body, or reactions; only the admin side sees them.
-const publicColumns = "id, parent_id, CASE WHEN secret THEN '' ELSE name END AS name, CASE WHEN secret THEN '' ELSE body END AS body, admin, secret, CASE WHEN secret THEN NULL ELSE reactions END AS reactions, created_at, expires_at";
-const shape = row => ({ ...row, admin: Boolean(row.admin), secret: Boolean(row.secret), reactions: JSON.parse(row.reactions ?? '{}') });
+const columns = 'id, slug, parent_id, name, body, admin, secret, reactions, quote, created_at, expires_at, deleted_at, deleted_by';
+// Public reads never carry a secret comment's name, body, reactions, or quote; only the admin side sees them.
+const publicColumns = "id, parent_id, CASE WHEN secret THEN '' ELSE name END AS name, CASE WHEN secret THEN '' ELSE body END AS body, admin, secret, CASE WHEN secret THEN NULL ELSE reactions END AS reactions, CASE WHEN secret THEN NULL ELSE quote END AS quote, created_at, expires_at";
+const shape = row => ({ ...row, admin: Boolean(row.admin), secret: Boolean(row.secret), reactions: JSON.parse(row.reactions ?? '{}'), quote: row.quote ? JSON.parse(row.quote) : null });
+// A quoted passage of the page: { text (1-300 chars), prefix and suffix (up to 60 chars of context), index (which occurrence) }.
+// The quote travels with the comment, so editing the page never loses it; the context only helps the widget find it again.
+function readQuote(quote) {
+  if (quote == null) return { ok: true, value: null };
+  const { text, prefix = '', suffix = '', index = 0 } = typeof quote === 'object' ? quote : {};
+  if (typeof text !== 'string' || typeof prefix !== 'string' || typeof suffix !== 'string' || !text.trim() || text.length > 300
+    || prefix.length > 60 || suffix.length > 60 || !Number.isInteger(index) || index < 0 || index > 1000) return { ok: false };
+  const value = { text, prefix, suffix, index };
+  return { ok: true, value, json: JSON.stringify(value) };
+}
 const earlier = (a, b) => (a && b ? (a < b ? a : b) : a ?? b);
 
 // Optional Workers Rate Limiting binding `RATE_LIMITER`, keyed by the client IP, which is only counted by Cloudflare, never stored.
@@ -77,19 +87,21 @@ const limited = async (request, env) => Boolean(env.RATE_LIMITER) && !(await env
 // Optional WEBHOOK_URL: posts each new visitor comment. `text` suits Slack, `content` suits Discord, `comment` is the raw data.
 // By default it carries no name or body, so nothing outlives the comment in the receiving chat; withContent adds them.
 // Visitor text is escaped for Slack (no <!channel>, no disguised <url|label> links) and Discord mentions are turned off.
-const sitePath = slug => /^\/(?![/\\])/.test(slug); // a same-site path, never //host or /\host
-function notify(env, comment, request, withContent) {
+const sitePath = slug => /^\/(?![/\\])[^\0-\x1f\x7f]*$/.test(slug); // a same-site path, never //host, /\host, or /<tab>/host
+// site: the origin the comment was posted from (an allowed embedding site), so links point at the page, not the Worker.
+function notify(env, comment, site, withContent) {
   if (!env.WEBHOOK_URL) return null;
-  const where = sitePath(comment.slug) ? new URL(comment.slug, request.url).href : comment.slug;
+  const where = sitePath(comment.slug) ? new URL(comment.slug, site).href : comment.slug;
   const fades = comment.expires_at ? ` (fades ${comment.expires_at.slice(0, 10)})` : '';
   const lock = comment.secret ? '🔒 ' : '';
   const message = esc => withContent
-    ? `${lock}💬 ${esc(comment.name || 'Anonymous')} on ${esc(where)}${fades}:\n${esc(comment.body).replace(/^/gm, '> ')}`
+    ? `${lock}💬 ${esc((comment.name || 'Anonymous').replace(/\s+/g, ' '))} on ${esc(where)}${fades}:\n${comment.quote ? `“${esc(comment.quote.text.replace(/\s+/g, ' '))}”\n` : ''}${esc(comment.body).replace(/^/gm, '> ')}`
     : `${lock}💬 New ${comment.secret ? 'private ' : ''}${comment.parent_id == null ? 'comment' : 'reply'} on ${esc(where)}${fades}`;
   const slack = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const { name, body, ...meta } = comment;
+  const discord = s => s.replace(/[[\]]/g, '\\$&'); // no [label](url) links in disguise
+  const { name, body, quote, ...meta } = comment;
   return fetch(env.WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: message(slack), content: message(s => s).slice(0, 2000), allowed_mentions: { parse: [] }, comment: withContent ? comment : meta }) }).catch(() => {});
+    body: JSON.stringify({ text: message(slack), content: message(discord).slice(0, 2000), allowed_mentions: { parse: [] }, comment: withContent ? comment : meta }) }).catch(() => {});
 }
 
 // The live top-level comment a reply attaches to (replies to replies attach to the same top-level comment).
@@ -108,104 +120,117 @@ export function createHandler({ isAdmin = tokenAdmin, canComment = () => true, o
     const { method } = request, url = new URL(request.url), db = env.DB, now = new Date().toISOString();
     const later = promise => promise && (ctx?.waitUntil ? ctx.waitUntil(promise) : promise);
     if (method === 'OPTIONS') return new Response(null, { status: 204, headers });
-    // CSRF: a browser write from another site carries its Origin; only this origin and listed origins may write.
-    if (method !== 'GET' && origin && origin !== url.origin && !origins.includes(origin)) return reply({ error: 'forbidden' }, 403);
-    const read = () => request.json().then(input => (input && typeof input === 'object' ? input : null), () => null);
-    // Deleting hides a comment (and the replies of a top-level one) and records when and by whom; the row stays.
-    const remove = (ids, by) => db.prepare(`UPDATE comments SET deleted_at = ?2, deleted_by = ?3
-      WHERE deleted_at IS NULL AND (id IN (SELECT value FROM json_each(?1)) OR parent_id IN (SELECT value FROM json_each(?1)))`).bind(JSON.stringify(ids), now, by).run();
+    try {
+      // CSRF: a browser write from another site carries its Origin; only this origin and listed origins may write.
+      if (method !== 'GET' && origin && origin !== url.origin && !origins.includes(origin)) return reply({ error: 'forbidden' }, 403);
+      // Bodies are small JSON; anything past 64 KB is refused before parsing.
+      const read = () => request.text().then(raw => {
+        const input = raw.length > 65536 ? null : JSON.parse(raw);
+        return input && typeof input === 'object' ? input : null;
+      }).catch(() => null);
+      // Deleting hides a comment (and the replies of a top-level one) and records when and by whom; the row stays.
+      const remove = (ids, by) => db.prepare(`UPDATE comments SET deleted_at = ?2, deleted_by = ?3
+        WHERE deleted_at IS NULL AND (id IN (SELECT value FROM json_each(?1)) OR parent_id IN (SELECT value FROM json_each(?1)))`).bind(JSON.stringify(ids), now, by).run();
 
-    if (url.searchParams.has('admin')) {
-      if (!(await isAdmin(request, env))) return reply({ error: 'forbidden' }, 403);
-      if (method === 'GET') {
-        // ?pages: pages that have comments, most recently commented first.
-        if (url.searchParams.has('pages')) return reply((await db.prepare('SELECT slug, count(*) AS count FROM comments GROUP BY slug ORDER BY max(id) DESC').all()).results);
-        // ?export: every comment, oldest first.
-        if (url.searchParams.has('export')) return reply((await db.prepare(`SELECT ${columns} FROM comments ORDER BY id`).all()).results.map(shape));
-        // Latest 200, optionally for one page (?slug=), matching name or body (?q=), and in one state (?status=live|expired|deleted).
-        const slug = url.searchParams.get('slug') ?? '', q = (url.searchParams.get('q') ?? '').trim(), status = url.searchParams.get('status') ?? '';
-        const like = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
-        return reply((await db.prepare(`SELECT ${columns} FROM comments
-          WHERE (?1 = '' OR slug = ?1) AND (?2 = '' OR name LIKE ?3 ESCAPE '\\' OR body LIKE ?3 ESCAPE '\\')
-            AND (?4 = '' OR (?4 = 'deleted' AND deleted_at IS NOT NULL) OR (?4 = 'expired' AND deleted_at IS NULL AND expires_at <= ?5)
-              OR (?4 = 'live' AND ${live.replace('?', '?5')}))
-          ORDER BY id DESC LIMIT 200`).bind(slug, q, like, status, now).all()).results.map(shape));
+      if (url.searchParams.has('admin')) {
+        if (!(await isAdmin(request, env))) return reply({ error: 'forbidden' }, 403);
+        if (method === 'GET') {
+          // ?pages: pages that have comments, most recently commented first.
+          if (url.searchParams.has('pages')) return reply((await db.prepare('SELECT slug, count(*) AS count FROM comments GROUP BY slug ORDER BY max(id) DESC').all()).results);
+          // ?export: every comment, oldest first.
+          if (url.searchParams.has('export')) return reply((await db.prepare(`SELECT ${columns} FROM comments ORDER BY id`).all()).results.map(shape));
+          // Latest 200, optionally for one page (?slug=), matching name, body, or quote (?q=), and in one state (?status=live|expired|deleted).
+          const slug = url.searchParams.get('slug') ?? '', q = (url.searchParams.get('q') ?? '').trim(), status = url.searchParams.get('status') ?? '';
+          const like = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
+          return reply((await db.prepare(`SELECT ${columns} FROM comments
+            WHERE (?1 = '' OR slug = ?1) AND (?2 = '' OR name LIKE ?3 ESCAPE '\\' OR body LIKE ?3 ESCAPE '\\' OR quote LIKE ?3 ESCAPE '\\')
+              AND (?4 = '' OR (?4 = 'deleted' AND deleted_at IS NOT NULL) OR (?4 = 'expired' AND deleted_at IS NULL AND expires_at <= ?5)
+                OR (?4 = 'live' AND ${live.replace('?', '?5')}))
+            ORDER BY id DESC LIMIT 200`).bind(slug, q, like, status, now).all()).results.map(shape));
+        }
+        if (method === 'POST') {
+          // Admin comment: no password, kept until its thread fades, secret when its thread is. { parent } for a reply, or { slug } for a new thread.
+          const input = await read();
+          if (!input) return reply({ error: 'request' }, 400);
+          const name = String(input.name ?? '').trim(), body = String(input.body ?? '').trim();
+          if (name.length > 40) return reply({ error: 'name' }, 400);
+          if (!body || body.length > 2000) return reply({ error: 'body' }, 400);
+          const top = input.parent == null ? null : await thread(db, input.parent, now);
+          if (input.parent != null && !top) return reply({ error: 'not_found' }, 404);
+          const slug = top?.slug ?? String(input.slug ?? '');
+          if (!slug || slug.length > 300) return reply({ error: 'slug' }, 400);
+          await db.prepare('INSERT INTO comments (slug, parent_id, name, body, admin, secret, created_at, expires_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)')
+            .bind(slug, top?.id ?? null, name, body, top?.secret ? 1 : 0, now, top?.expires_at ?? null).run();
+          return reply({ ok: true }, 201);
+        }
+        if (method !== 'DELETE') return reply({ error: 'method' }, 405);
+        // One or many: ?id=1&id=2 (up to 200). json_each keeps it to one bound parameter (D1 caps them at 100).
+        const ids = url.searchParams.getAll('id').map(Number);
+        if (!ids.length || ids.length > 200 || !ids.every(Number.isInteger)) return reply({ error: 'id' }, 400);
+        await remove(ids, 'admin');
+        return reply({ ok: true });
       }
+
+      if (method === 'GET') {
+        const slug = url.searchParams.get('slug');
+        if (!slug) return reply({ error: 'slug' }, 400);
+        return reply((await db.prepare(`SELECT ${publicColumns} FROM comments WHERE slug = ? AND ${live} ORDER BY id`).bind(slug, now).all()).results.map(shape));
+      }
+      if (!['POST', 'PUT', 'DELETE'].includes(method)) return reply({ error: 'method' }, 405);
+      const input = await read();
+      if (!input) return reply({ error: 'request' }, 400);
+      if (await limited(request, env)) return reply({ error: 'rate' }, 429);
+
+      // ?react: { id, emoji, on } adds (or with on: false removes) one reaction. No Turnstile; the rate limit covers it.
+      if (method === 'POST' && url.searchParams.has('react')) {
+        if (!oneEmoji.test(String(input.emoji ?? ''))) return reply({ error: 'emoji' }, 400);
+        const path = `$."${input.emoji}"`;
+        const row = await db.prepare(`UPDATE comments SET reactions = json_set(coalesce(reactions, '{}'), ?1, max(0, coalesce(json_extract(reactions, ?1), 0) + ?2))
+          WHERE id = ?3 AND NOT secret AND ${live.replace('?', '?4')} RETURNING reactions`).bind(path, input.on === false ? -1 : 1, Number(input.id), now).first();
+        return row ? reply({ reactions: JSON.parse(row.reactions) }) : reply({ error: 'not_found' }, 404);
+      }
+
+      const body = String(input.body ?? '').trim(), password = String(input.password ?? '');
+      const badBody = !body || body.length > 2000;
+
       if (method === 'POST') {
-        // Admin comment: no password, kept until its thread fades, secret when its thread is. { parent } for a reply, or { slug } for a new thread.
-        const input = await read();
-        if (!input) return reply({ error: 'request' }, 400);
-        const name = String(input.name ?? '').trim(), body = String(input.body ?? '').trim();
+        const name = String(input.name ?? '').trim();
         if (name.length > 40) return reply({ error: 'name' }, 400);
-        if (!body || body.length > 2000) return reply({ error: 'body' }, 400);
-        const top = input.parent == null ? null : await thread(db, input.parent, now);
+        if (badBody) return reply({ error: 'body' }, 400);
+        if (password.length < 4 || password.length > 100) return reply({ error: 'password' }, 400);
+        if (!Object.hasOwn(keeps, input.keep)) return reply({ error: 'keep' }, 400);
+        const quote = readQuote(input.quote);
+        if (!quote.ok) return reply({ error: 'quote' }, 400);
+        // { parent } makes it a reply; it can never outlive its thread, and replies in a secret thread are secret.
+        // { secret: true } makes it visible to the admin side only.
+        const parent = typeof input.parent !== 'boolean' && /^\d+$/.test(String(input.parent)) ? Number(input.parent) : null; // an id, never true
+        const top = parent == null ? null : await thread(db, parent, now);
         if (input.parent != null && !top) return reply({ error: 'not_found' }, 404);
         const slug = top?.slug ?? String(input.slug ?? '');
         if (!slug || slug.length > 300) return reply({ error: 'slug' }, 400);
-        await db.prepare('INSERT INTO comments (slug, parent_id, name, body, admin, secret, created_at, expires_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)')
-          .bind(slug, top?.id ?? null, name, body, top?.secret ? 1 : 0, now, top?.expires_at ?? null).run();
+        if (!(await canComment(slug, request, env))) return reply({ error: 'page' }, 404);
+        if (!(await human(env, input.turnstile))) return reply({ error: 'turnstile' }, 403);
+        const days = keeps[input.keep], secret = input.secret === true || Boolean(top?.secret);
+        const expires = earlier(days ? new Date(Date.now() + days * 864e5).toISOString() : null, top?.expires_at ?? null);
+        const { meta } = await db.prepare('INSERT INTO comments (slug, parent_id, name, body, secret, quote, created_at, expires_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(slug, top?.id ?? null, name, body, secret ? 1 : 0, quote.json ?? null, now, expires, await hashPassword(password)).run();
+        await later(notify(env, { id: meta?.last_row_id, slug, parent_id: top?.id ?? null, name, body, quote: quote.value, secret, created_at: now, expires_at: expires }, origins.includes(origin) ? origin : url.origin, webhookContent));
         return reply({ ok: true }, 201);
       }
-      if (method !== 'DELETE') return reply({ error: 'method' }, 405);
-      // One or many: ?id=1&id=2 (up to 200). json_each keeps it to one bound parameter (D1 caps them at 100).
-      const ids = url.searchParams.getAll('id').map(Number);
-      if (!ids.length || ids.length > 200 || !ids.every(Number.isInteger)) return reply({ error: 'id' }, 400);
-      await remove(ids, 'admin');
-      return reply({ ok: true });
-    }
 
-    if (method === 'GET') {
-      const slug = url.searchParams.get('slug');
-      if (!slug) return reply({ error: 'slug' }, 400);
-      return reply((await db.prepare(`SELECT ${publicColumns} FROM comments WHERE slug = ? AND ${live} ORDER BY id`).bind(slug, now).all()).results.map(shape));
-    }
-    if (!['POST', 'PUT', 'DELETE'].includes(method)) return reply({ error: 'method' }, 405);
-    const input = await read();
-    if (!input) return reply({ error: 'request' }, 400);
-    if (await limited(request, env)) return reply({ error: 'rate' }, 429);
-
-    // ?react: { id, emoji, on } adds (or with on: false removes) one reaction. No Turnstile; the rate limit covers it.
-    if (method === 'POST' && url.searchParams.has('react')) {
-      if (!oneEmoji.test(String(input.emoji ?? ''))) return reply({ error: 'emoji' }, 400);
-      const path = `$."${input.emoji}"`;
-      const row = await db.prepare(`UPDATE comments SET reactions = json_set(coalesce(reactions, '{}'), ?1, max(0, coalesce(json_extract(reactions, ?1), 0) + ?2))
-        WHERE id = ?3 AND NOT secret AND ${live.replace('?', '?4')} RETURNING reactions`).bind(path, input.on === false ? -1 : 1, Number(input.id), now).first();
-      return row ? reply({ reactions: JSON.parse(row.reactions) }) : reply({ error: 'not_found' }, 404);
-    }
-
-    const body = String(input.body ?? '').trim(), password = String(input.password ?? '');
-    const badBody = !body || body.length > 2000;
-
-    if (method === 'POST') {
-      const name = String(input.name ?? '').trim();
-      if (name.length > 40) return reply({ error: 'name' }, 400);
-      if (badBody) return reply({ error: 'body' }, 400);
-      if (password.length < 4 || password.length > 100) return reply({ error: 'password' }, 400);
-      if (!Object.hasOwn(keeps, input.keep)) return reply({ error: 'keep' }, 400);
-      // { parent } makes it a reply; it can never outlive its thread, and replies in a secret thread are secret.
-      // { secret: true } makes it visible to the admin side only.
-      const top = input.parent == null ? null : await thread(db, input.parent, now);
-      if (input.parent != null && !top) return reply({ error: 'not_found' }, 404);
-      const slug = top?.slug ?? String(input.slug ?? '');
-      if (!slug || slug.length > 300) return reply({ error: 'slug' }, 400);
-      if (!(await canComment(slug, request, env))) return reply({ error: 'page' }, 404);
+      // PUT edits the body, DELETE hides it (with its replies); both need Turnstile and the comment's password.
+      if (method === 'PUT' && badBody) return reply({ error: 'body' }, 400);
       if (!(await human(env, input.turnstile))) return reply({ error: 'turnstile' }, 403);
-      const days = keeps[input.keep], secret = input.secret === true || Boolean(top?.secret);
-      const expires = earlier(days ? new Date(Date.now() + days * 864e5).toISOString() : null, top?.expires_at ?? null);
-      const { meta } = await db.prepare('INSERT INTO comments (slug, parent_id, name, body, secret, created_at, expires_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(slug, top?.id ?? null, name, body, secret ? 1 : 0, now, expires, await hashPassword(password)).run();
-      await later(notify(env, { id: meta?.last_row_id, slug, parent_id: top?.id ?? null, name, body, secret, created_at: now, expires_at: expires }, request, webhookContent));
-      return reply({ ok: true }, 201);
+      const id = Number(input.id);
+      const row = await db.prepare(`SELECT password_hash FROM comments WHERE id = ? AND ${live}`).bind(id, now).first();
+      if (!row) return reply({ error: 'not_found' }, 404);
+      if (!(await checkPassword(password, row.password_hash))) return reply({ error: 'wrong_password' }, 403);
+      await (method === 'PUT' ? db.prepare('UPDATE comments SET body = ? WHERE id = ?').bind(body, id).run() : remove([id], 'author'));
+      return reply({ ok: true });
+    } catch (error) {
+      // Usually a database that misses a migration: new code expects columns an old schema lacks.
+      console.error(`iseul: ${error.message}${/no such (column|table)/.test(error.message) ? ' (apply the iseul migrations: wrangler d1 migrations apply DB)' : ''}`);
+      return reply({ error: 'server' }, 500);
     }
-
-    // PUT edits the body, DELETE hides it (with its replies); both need Turnstile and the comment's password.
-    if (method === 'PUT' && badBody) return reply({ error: 'body' }, 400);
-    if (!(await human(env, input.turnstile))) return reply({ error: 'turnstile' }, 403);
-    const id = Number(input.id);
-    const row = await db.prepare(`SELECT password_hash FROM comments WHERE id = ? AND ${live}`).bind(id, now).first();
-    if (!row) return reply({ error: 'not_found' }, 404);
-    if (!(await checkPassword(password, row.password_hash))) return reply({ error: 'wrong_password' }, 403);
-    await (method === 'PUT' ? db.prepare('UPDATE comments SET body = ? WHERE id = ?').bind(body, id).run() : remove([id], 'author'));
-    return reply({ ok: true });
   };
 }

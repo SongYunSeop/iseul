@@ -10,10 +10,14 @@
 <body>
   <h1>iseul demo</h1>
   <p>Turnstile 테스트 키를 쓰므로 자동 확인이 항상 통과합니다. <a href="?lang=en">English</a></p>
+  <article id="post">
+    <p>이슬은 작은 댓글 위젯입니다. 이 문단의 문장을 선택하면 인용해서 댓글을 달 수 있습니다.</p>
+    <p>인용된 문장에는 형광펜과 여백 배지가 붙고, 누르면 그 문장에 달린 댓글을 보여 줍니다.</p>
+  </article>
   <div id="comments"></div>
   <script type="module">
     import { mount } from '/src/widget.js';
-    mount('#comments', { siteKey: '1x00000000000000000000AA', lang: new URLSearchParams(location.search).get('lang') ?? 'ko' });
+    mount('#comments', { siteKey: '1x00000000000000000000AA', lang: new URLSearchParams(location.search).get('lang') ?? 'ko', quote: '#post', quoteMarks: true });
   </script>
 </body>
 </html>

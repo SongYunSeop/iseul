@@ -25,7 +25,7 @@ On any page of an allowed site:
 <script type="module" src="https://<your worker>.workers.dev/embed.js"></script>
 ```
 
-Optional attributes: `data-slug` (default: the page path), `data-secret="true"` (offer private comments), `data-anonymous="false"` (require a name), `data-reactions="👍 ❤️"` (`""` hides reactions).
+Optional attributes: `data-slug` (default: the page path), `data-secret="true"` (offer private comments), `data-anonymous="false"` (require a name), `data-reactions="👍 ❤️"` (`""` hides reactions), `data-quote="article"` (quote comments on the element matching that selector; it must not contain the comments), `data-quote-marks="true"` (highlight quoted passages, badges in the right margin; `"left"` for the left).
 
 ## Moderate
 
@@ -33,5 +33,6 @@ Open `https://<your worker>.workers.dev/admin` and enter `ADMIN_TOKEN`.
 
 ## Optional
 
-- `WEBHOOK_URL` secret (Settings → Variables and Secrets): Slack or Discord notifications for new comments. Set `WEBHOOK_CONTENT` to `true` to include the name and body.
-- Upgrade: bump the `iseul` version in `package.json` and push; deploy applies new migrations.
+- `WEBHOOK_URL` secret (Settings → Variables and Secrets): Slack or Discord notifications for new comments. Set `WEBHOOK_CONTENT` to `true` to include the name, the quoted passage, and the body.
+- Rate limit: `wrangler.jsonc` limits posts, edits, deletes, and reactions to 10 a minute per IP (`RATE_LIMITER`); change `simple` to tune it.
+- Upgrade: bump the `iseul` version in `package.json` and push; deploy applies new migrations before the new code goes live.

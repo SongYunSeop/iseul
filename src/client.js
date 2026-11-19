@@ -10,7 +10,8 @@ export function createClient(endpoint = '/api/comments', { token, credentials } 
   }
   return {
     list: slug => call('GET', `?slug=${encodeURIComponent(slug)}`),
-    // { slug, name, body, password, keep: 'day'|'week'|'month'|'year'|'forever', turnstile, parent?, secret? }.
+    // { slug, name, body, password, keep: 'day'|'week'|'month'|'year'|'forever', turnstile, parent?, secret?, quote? }.
+    // quote: { text, prefix?, suffix?, index? }, the passage it comments on (the widget's quote option fills it in).
     // With parent it is a reply; secret: true shows it to the admin side only (the public list gets a placeholder).
     post: comment => call('POST', '', comment),
     // Adds (on: true) or removes (on: false) one reaction; resolves to { reactions }.

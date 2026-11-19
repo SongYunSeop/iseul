@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createHandler, accessAdmin } from '../src/server.js';
 import { createClient } from '../src/client.js';
@@ -8,7 +8,7 @@ import { createClient } from '../src/client.js';
 // Minimal D1 surface (prepare/bind/first/all/run) over node:sqlite so the real schema and SQL run.
 function d1() {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8'));
+  for (const file of readdirSync(new URL('../migrations/', import.meta.url)).sort()) db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
   const query = (sql, args = []) => ({ first: async () => db.prepare(sql).get(...args) ?? null, all: async () => ({ results: db.prepare(sql).all(...args) }), run: async () => ({ meta: { last_row_id: Number(db.prepare(sql).run(...args).lastInsertRowid) } }) });
   return { raw: db, prepare: sql => ({ ...query(sql), bind: (...args) => query(sql, args) }) };
 }
@@ -121,6 +121,7 @@ test('replies attach to the top-level comment, never outlive it, and are hidden 
   await client.post({ ...valid, keep: 'day' });                              // 1
   await client.post({ ...valid, parent: 1, keep: 'forever', body: '답글' }); // 2
   await client.post({ ...valid, parent: 2, body: '답글의 답글' });           // 3 → attaches to 1
+  assert.equal(await code(client.post({ ...valid, parent: true })), 'not_found'); // not an id
   const [top, reply, nested] = await client.list('/hello/');
   assert.equal(top.parent_id, null);
   assert.equal(reply.parent_id, 1);
@@ -228,6 +229,14 @@ test('webhookContent puts the name and body into the notification', async t => {
   assert.match(hooks[2].text, /:\n> 첫 줄\n> 둘째 줄$/);
   assert.equal(hooks[0].comment.body, '좋은 글이네요');
   assert.match(hooks[1].text, /^💬 Anonymous on https:\/\/blog\.example\/hello\/ \(fades /);
+  await client.post({ ...valid, quote: { text: '<b>인용</b>' } });
+  assert.match(hooks[3].text, /:\n“&lt;b&gt;인용&lt;\/b&gt;”\n> 좋은 글이네요$/);
+  assert.equal(hooks[3].comment.quote.text, '<b>인용</b>');
+  await client.post({ ...valid, quote: { text: '첫 줄\n💬 가짜 알림' } });
+  assert.match(hooks[4].text, /“첫 줄 💬 가짜 알림”/);
+  await client.post({ ...valid, name: 'a\n> 가짜 줄', body: '[관리자](https://evil.example)' });
+  assert.match(hooks[5].text, /^💬 a &gt; 가짜 줄 on /);
+  assert.match(hooks[5].content, /\\\[관리자\\\]\(https:\/\/evil\.example\)$/);
 });
 
 test('secret comments: placeholder in public, full on the admin side, replies inherit secrecy', async t => {
@@ -272,10 +281,43 @@ test('webhook text escapes Slack markup, turns off Discord mentions, and never l
   assert.equal(hooks.length, 3);
 });
 
+test('quotes are validated, stored with the comment, and hidden on private comments', async t => {
+  const { client, admin } = setup(t);
+  const quote = { text: '비 오기 전', prefix: '오늘 저녁, ', suffix: ' 산책을 나갔다.', index: 1 };
+  await client.post({ ...valid, quote });
+  await client.post({ ...valid, quote, secret: true });
+  await client.post(valid);
+  const [quoted, hidden, plain] = await client.list('/hello/');
+  assert.deepEqual(quoted.quote, quote);
+  assert.equal(hidden.quote, null);
+  assert.equal(plain.quote, null);
+  assert.deepEqual((await admin.admin.list()).find(c => c.id === 2).quote, quote);
+  for (const bad of [{ text: '' }, { text: 'x'.repeat(301) }, { text: 'a', prefix: 'x'.repeat(61) }, { text: 'a', suffix: 'x'.repeat(61) }, { text: 'a', index: -1 }, { text: 'a', index: 1.5 }, { text: 'a', index: 1001 }, 'a string', { text: { a: 1 } }, { text: 'a', prefix: 1 }]) {
+    assert.equal(await code(client.post({ ...valid, quote: bad })), 'quote', JSON.stringify(bad));
+  }
+});
+
 test('works as a Pages Function and sends CORS headers only to listed origins', async t => {
   const { env } = setup(t);
   const handler = createHandler({ origins: ['https://site.example'] });
   const preflight = origin => handler({ request: new Request('https://api.example/comments', { method: 'OPTIONS', headers: { Origin: origin } }), env });
   assert.equal((await preflight('https://site.example')).headers.get('Access-Control-Allow-Origin'), 'https://site.example');
   assert.equal((await preflight('https://evil.example')).headers.get('Access-Control-Allow-Origin'), null);
+});
+
+test('a database that misses a migration answers a JSON server error and says why in the log', async t => {
+  const { env, client } = setup(t);
+  env.DB.raw.exec('ALTER TABLE comments DROP COLUMN quote');
+  const logged = [];
+  t.mock.method(console, 'error', message => logged.push(message));
+  assert.equal(await code(client.list('/hello/')), 'server');
+  assert.match(logged[0], /no such column: quote.*migrations apply/);
+});
+
+test('admin search also matches the quoted passage', async t => {
+  const { client, admin } = setup(t);
+  await client.post({ ...valid, quote: { text: '찾을 인용문' } });
+  await client.post({ ...valid, parent: '1' }); // an id as text still works
+  assert.deepEqual((await admin.admin.list({ q: '찾을 인용' })).map(c => c.id), [1]);
+  assert.equal((await client.list('/hello/'))[1].parent_id, 1);
 });

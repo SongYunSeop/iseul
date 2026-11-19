@@ -3,10 +3,11 @@
 import { createHandler } from 'iseul/server';
 
 let handler;
-const adminPage = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+// The page links of the admin point at the first allowed origin (the site that embeds the comments).
+const adminPage = site => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex"><title>Comments · admin</title><link rel="stylesheet" href="/widget.css">
 <style>:root { color-scheme: light dark; } body { max-width: 860px; margin: 40px auto; padding: 0 16px; font: 16px/1.6 system-ui, sans-serif; background: Canvas; color: CanvasText; }</style>
-</head><body><div id="admin"></div><script type="module">import { mountAdmin } from '/admin.js'; mountAdmin('#admin', { lang: navigator.language.startsWith('ko') ? 'ko' : 'en' });</script></body></html>`;
+</head><body><div id="admin"></div><script type="module">import { mountAdmin } from '/admin.js'; mountAdmin('#admin', { lang: navigator.language.startsWith('ko') ? 'ko' : 'en', ...${JSON.stringify(site ? { site } : {}).replace(/</g, '\\u003c')} });</script></body></html>`;
 
 export default {
   async fetch(request, env, ctx) {
@@ -18,7 +19,7 @@ export default {
       });
       return handler(request, env, ctx);
     }
-    if (pathname === '/admin') return new Response(adminPage, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+    if (pathname === '/admin') return new Response(adminPage((env.ALLOWED_ORIGINS ?? '').split(',')[0].trim()), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     if (pathname === '/') return Response.redirect(new URL('/admin', request.url), 302);
     // Module scripts loaded from other sites need CORS.
     const asset = await env.ASSETS.fetch(request);

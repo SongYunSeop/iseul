@@ -45,7 +45,44 @@
 .iseul label.check { display: flex; align-items: center; gap: 8px; color: var(--iseul-ink); cursor: pointer; }
 .iseul .body.secret { color: var(--iseul-muted); font-style: italic; }
 .iseul .badge.secret { color: var(--iseul-muted); background: color-mix(in srgb, var(--iseul-ink) 8%, transparent); }
+.iseul .quote, .iseul .quoting blockquote { display: block; margin: 0 0 8px; padding: 2px 0 2px 12px; border-left: 3px solid var(--iseul-line); color: var(--iseul-muted); font-size: 14px; line-height: 1.7; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.iseul button.link.quote { width: 100%; padding: 2px 0 2px 12px; font-size: 14px; border: 0; border-left: 3px solid var(--iseul-line); color: var(--iseul-muted); text-decoration: none; cursor: pointer; }
+.iseul button.link.quote:hover { border-left-color: var(--iseul-accent); color: var(--iseul-ink); background: none; }
+.iseul .quote.missing { opacity: .7; }
+.iseul .quote.missing small { font-size: 12px; }
+.iseul .quoting { display: grid; gap: 4px; }
+.iseul .quoting button { justify-self: start; }
+/* One zero-size layer at the top left of the page holds the quote button, badges, and popovers. */
+.iseul-quote-marks { position: absolute; top: 0; left: 0; width: 0; height: 0; --iseul-quote-accent: #2f6fdb; }
+/* Outside .iseul, so the host page's button rules reach these: keep hidden things hidden and margins off. */
+.iseul-quote-marks [hidden] { display: none !important; }
+.iseul-quote-marks button { margin: 0; }
+.iseul-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
+.iseul-quote-mark { position: absolute; z-index: 10; padding: 1px 8px; border: 0; border-radius: 999px; background: var(--iseul-quote-accent); color: var(--iseul-quote-ink, #fff); min-height: 24px; font: 700 12px/1.6 system-ui, sans-serif; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); white-space: nowrap; cursor: pointer; }
+.iseul-quote-mark.left { transform: translateX(-100%); }
+.iseul-quote-mark:hover, .iseul-quote-mark:focus-visible { filter: brightness(1.2); }
+::highlight(iseul-quote) { background-color: color-mix(in srgb, var(--iseul-quote-accent, #2f6fdb) 30%, transparent); text-decoration: underline; text-decoration-color: var(--iseul-quote-accent, #2f6fdb); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.iseul li.flash { animation: iseul-flash 1.6s ease-out; }
+@keyframes iseul-flash { from { background: color-mix(in srgb, var(--iseul-accent) 18%, transparent); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .iseul li.flash { animation: none; outline: 2px solid var(--iseul-accent); } }
+.iseul-quote-list { position: absolute; inset: auto; margin: 0; box-sizing: border-box; width: min(280px, calc(100vw - 16px)); max-height: 50vh; overflow: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid color-mix(in srgb, var(--iseul-quote-text, #222) 15%, transparent); border-radius: 10px; background: var(--iseul-quote-surface, #fff); color: var(--iseul-quote-text, #222); box-shadow: 0 8px 24px rgba(0, 0, 0, .16); font: 13px/1.5 system-ui, sans-serif; }
+.iseul-quote-list button { display: grid; gap: 1px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.iseul-quote-list button:hover, .iseul-quote-list button:focus-visible { background: color-mix(in srgb, var(--iseul-quote-text, #222) 8%, transparent); }
+.iseul-quote-list.full { width: min(340px, calc(100vw - 16px)); }
+.iseul-quote-list.full q { display: none; }
+.iseul-quote-list.full span { overflow: visible; color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.iseul-quote-list q { color: var(--iseul-quote-accent); font-weight: 600; }
+.iseul-quote-list span { overflow: hidden; color: color-mix(in srgb, var(--iseul-quote-text, #222) 65%, transparent); text-overflow: ellipsis; white-space: nowrap; }
+.iseul-quote-pick { position: absolute; z-index: 1000; white-space: nowrap; transform: translate(-50%, -100%); padding: 6px 12px; border: 0; border-radius: 999px; background: var(--iseul-quote-text, #1f2624); color: var(--iseul-quote-surface, #fff); font: 13px/1.4 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); }
+.iseul-quote-pick.below { transform: translate(-50%, 0); }
+.iseul-quote-pick.touch { min-height: 44px; padding: 10px 18px; font-size: 15px; }
+.iseul-quote-pick:disabled { cursor: default; opacity: .85; }
+::highlight(iseul-quote-focus) { background-color: color-mix(in srgb, var(--iseul-quote-accent, #2f6fdb) 55%, transparent); }
 .iseul .replying { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-left: 3px solid var(--iseul-accent); background: color-mix(in srgb, var(--iseul-accent) 8%, transparent); font-size: 14px; }
+@media print {
+  .iseul-quote-marks { display: none; }
+  ::highlight(iseul-quote), ::highlight(iseul-quote-focus) { background-color: transparent; text-decoration: none; }
+}
 .iseul input[type=checkbox] { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--iseul-accent); cursor: pointer; }
 
 /* iseul/admin */

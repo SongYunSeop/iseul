@@ -1,6 +1,6 @@
 {
   "name": "iseul",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Login-free comments that fade away when their time is up. Cloudflare Workers/Pages + D1 + Turnstile.",
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
     "./admin": "./src/admin.js",
     "./widget.css": "./src/widget.css",
     "./embed": "./src/embed.js",
-    "./migrations/0001_init.sql": "./migrations/0001_init.sql"
+    "./migrations/*": "./migrations/*"
   },
   "files": [
     "src",

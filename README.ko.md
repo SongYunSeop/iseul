@@ -17,7 +17,8 @@
 - **답글과 반응.** 한 단계 답글, 이모지 반응(기본 👍 ❤️ 😂 😮 😢, 직접 정할 수 있음), 배지가 붙는 운영자 답글.
 - **관리 화면.** 페이지·상태별 보기, 검색, 일괄 삭제, 운영자 답글, JSON·CSV 내보내기.
 - **알림.** Slack·Discord 등으로 보내는 웹훅(선택).
-- **작음.** 의존성 없음. 위젯은 gzip 기준 약 8KB, 한국어·영어 지원.
+- **인용 댓글.** 켜 두면 독자가 문장을 선택해 그 문장에 댓글을 달 수 있고, 인용된 문장에 형광펜과 여백 배지를 표시할 수 있습니다.
+- **작음.** 의존성 없음. 위젯은 gzip 기준 약 15KB, 한국어·영어 지원.
 
 진입점은 다섯 가지입니다: `iseul/server`(API 핸들러), `iseul/client`(직접 만드는 UI용 fetch 래퍼), `iseul/widget`(기본 댓글 화면), `iseul/admin`(관리 화면), `iseul/embed`(번들러 없는 페이지용 script 태그).
 
@@ -30,7 +31,7 @@
 <script type="module" src="https://<내 worker>.workers.dev/embed.js"></script>
 ```
 
-선택 속성: `data-slug`, `data-secret="true"`, `data-anonymous="false"`, `data-reactions="👍 ❤️"`. 자세한 내용은 [template/README.md](template/README.md).
+선택 속성: `data-slug`, `data-secret="true"`, `data-anonymous="false"`, `data-reactions="👍 ❤️"`, `data-quote="article"`, `data-quote-marks="true"`. 자세한 내용은 [template/README.md](template/README.md).
 
 이미 있는 Worker나 Pages 프로젝트에 붙이려면 아래 시작하기를 따르세요.
 
@@ -39,7 +40,7 @@
 ### 1. 설치
 
 ```sh
-npm install github:SongYunSeop/iseul#v0.1.0
+npm install github:SongYunSeop/iseul#v0.2.0
 ```
 
 ### 2. Cloudflare 준비
@@ -107,8 +108,12 @@ mount('#comments', { siteKey: '<Turnstile 사이트 키>' }); // <div id="commen
 | `reactions` | 👍 ❤️ 😂 😮 😢 | 보여 줄 이모지. 서버는 이모지 한 개면 무엇이든 받습니다. `[]`이면 반응 숨김 |
 | `anonymous` | `true` | `false`면 닉네임 필수 |
 | `secret` | `false` | `true`면 "관리자에게만 보이기" 선택지 표시. 비밀 댓글에 달린 답글도 비밀 |
+| `quote` | (꺼짐) | 본문 요소나 선택자(예: `'.prose'`). 본문을 선택하면 "인용해서 댓글"이 뜨고, 인용(300자까지)이 댓글 위에 보이며 누르면 그 문장으로 이동. 요소는 `mount` 때 있어야 하고 댓글을 포함하면 안 됨 |
+| `quoteMarks` | `false` | `quote`와 함께: 인용된 문장에 형광펜(누르면 그 댓글을 팝업으로 보여 줌), 여백이 56px 이상이면 배지를 `true`/`'right'` 또는 `'left'`에 표시. 위치는 페이지 스크롤 기준이라 본문이 자체 스크롤 상자 안에 있으면 지원하지 않음 |
 
 이 옵션들은 폼 모양만 정합니다. 서버는 어떤 조합이든 받으므로 API를 직접 부르면 익명·비밀 댓글을 남길 수 있습니다.
+
+`mount`는 `unmount()`를 돌려줍니다. 위젯과 위젯이 페이지에 붙인 것(배지, 이벤트, 형광펜)을 모두 지웁니다. 새로고침 없이 화면이 바뀌는 페이지에서 다시 `mount`하기 전에 부르세요.
 
 ## 서버
 
@@ -121,15 +126,15 @@ createHandler({
 });
 ```
 
-비밀 댓글(`secret: true`)은 공개 API에 닉네임·내용·반응 없이 나갑니다. 작성자는 비밀번호로 삭제할 수 있습니다.
+비밀 댓글(`secret: true`)은 공개 API에 닉네임·내용·반응·인용 없이 나갑니다. 작성자는 비밀번호로 삭제할 수 있습니다.
 
-제한: 닉네임 40자, 내용 1~2,000자, 비밀번호 4~100자. 작성·수정·삭제마다 새 Turnstile 토큰이 필요해서 비밀번호 대입도 막힙니다. 반응에는 필요 없으니 앞단에 속도 제한을 두세요(아래 `RATE_LIMITER` 또는 WAF 속도 제한 규칙). 다른 사이트의 브라우저에서 오는 쓰기는 `origins`에 없으면 거부합니다. 답글은 최상위 댓글에 붙고, 그보다 늦게 만료되지 않으며, 원래 댓글과 함께 숨겨집니다.
+제한: 닉네임 40자, 내용 1~2,000자, 비밀번호 4~100자, 인용 1~300자(앞뒤 문맥 각 60자까지). 작성·수정·삭제마다 새 Turnstile 토큰이 필요해서 비밀번호 대입도 막힙니다. 반응에는 필요 없으니 앞단에 속도 제한을 두세요(아래 `RATE_LIMITER` 또는 WAF 속도 제한 규칙). 다른 사이트의 브라우저에서 오는 쓰기는 `origins`에 없으면 거부합니다. 답글은 최상위 댓글에 붙고, 그보다 늦게 만료되지 않으며, 원래 댓글과 함께 숨겨집니다.
 
 선택 env:
 
 | Env | |
 | --- | --- |
-| `WEBHOOK_URL` | 새 방문자 댓글마다 `{ text, content, comment }`를 POST합니다. Slack은 `text`, Discord는 `content`, 그 밖에는 `comment`를 씁니다. 기본은 어디에 언제까지인지만 보냅니다(`💬 New comment on …/hello/ (fades 2026-11-25)`). `webhookContent: true`면 닉네임과 본문(인용)을 넣습니다. |
+| `WEBHOOK_URL` | 새 방문자 댓글마다 `{ text, content, comment }`를 POST합니다. Slack은 `text`, Discord는 `content`, 그 밖에는 `comment`를 씁니다. 기본은 어디에 언제까지인지만 보냅니다(`💬 New comment on …/hello/ (fades 2026-11-25)`). `webhookContent: true`면 닉네임, 인용한 문장(있으면), 본문을 넣습니다. 링크는 댓글을 단 사이트(`origins`에 있는 출처면 그 출처) 기준입니다. |
 | `RATE_LIMITER` | [Workers Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) 바인딩(Workers 전용, Pages는 API 경로에 WAF 속도 제한 규칙). 작성·수정·삭제·반응을 클라이언트 IP별로 제한합니다. IP는 Cloudflare가 셀 뿐 iseul은 저장하지 않습니다. |
 
 ```toml
@@ -160,6 +165,7 @@ import { mountAdmin } from 'iseul/admin';
 import 'iseul/widget.css';
 
 mountAdmin('#admin', { endpoint: '/api/comments' }); // <div id="admin"></div>
+// site: 'https://blog.example' 처럼 글 링크를 다른 출처로 걸 때 지정(기본: 이 페이지의 출처)
 ```
 
 최신 댓글 200개를 보여 주고 페이지와 상태(공개 중·만료·삭제됨)로 거릅니다. 먼저 토큰 없이 서버에 물어보므로 Cloudflare Access나 쿠키 확인은 그대로 동작합니다. 서버가 거부하면 `ADMIN_TOKEN`을 묻고, 그 탭의 `sessionStorage`에만 둡니다.
@@ -175,6 +181,7 @@ const comments = createClient('/api/comments');
 await comments.list('/posts/hello');
 await comments.post({ slug: '/posts/hello', name: '', body: '안녕하세요', password: '1234', keep: 'week', turnstile: token });
 await comments.post({ parent: 1, name: '', body: '답글', password: '1234', keep: 'day', turnstile: token });
+await comments.post({ slug: '/posts/hello', name: '', body: '공감해요', password: '1234', keep: 'week', turnstile: token, quote: { text: '인용한 문장', prefix: '…', suffix: '…', index: 0 } });
 await comments.react({ id: 1, emoji: '👍' });    // on: false면 취소, { reactions }를 돌려줌
 await comments.edit({ id: 1, password: '1234', body: '고친 내용', turnstile: token });
 await comments.remove({ id: 1, password: '1234', turnstile: token });
@@ -187,9 +194,9 @@ await admin.admin.export();                       // 전체 댓글, 오래된 �
 await admin.admin.remove([1, 2, 3]);              // id 하나 또는 최대 200개, 답글과 함께
 ```
 
-`keep`은 `day`, `week`, `month`, `year`, `forever` 중 하나입니다. 댓글에는 `parent_id`, `admin`, `secret`, `reactions`(`{ "👍": 2 }`)가 함께 오고, 관리자 목록에는 `deleted_at`, `deleted_by`도 옵니다. `name`이 비어 있으면 익명입니다.
+`keep`은 `day`, `week`, `month`, `year`, `forever` 중 하나입니다. 댓글에는 `parent_id`, `admin`, `secret`, `reactions`(`{ "👍": 2 }`), `quote`(`{ text, prefix, suffix, index }` 또는 `null`)가 함께 오고, 관리자 목록에는 `deleted_at`, `deleted_by`도 옵니다. `name`이 비어 있으면 익명입니다.
 
-실패하면 `code`가 붙은 `Error`를 던집니다: `name`, `body`, `password`, `keep`, `slug`, `page`, `turnstile`, `not_found`, `wrong_password`, `rate`, `emoji`, `forbidden`, `request`, `method`, `id`, `network`.
+실패하면 `code`가 붙은 `Error`를 던집니다: `name`, `body`, `password`, `keep`, `slug`, `page`, `turnstile`, `not_found`, `wrong_password`, `rate`, `emoji`, `quote`, `forbidden`, `request`, `method`, `id`, `server`(마이그레이션 누락 같은 예상 못 한 실패, 자세한 내용은 Worker 로그), `network`.
 
 ## 스타일
 
@@ -199,9 +206,21 @@ await admin.admin.remove([1, 2, 3]);              // id 하나 또는 최대 200
 .iseul { --iseul-ink: #222; --iseul-muted: #777; --iseul-line: #e5e5e5; --iseul-accent: #c33; }
 ```
 
+인용 댓글은 위젯 밖에 그리는 요소(배지, 형광펜, 댓글 팝업, 인용 버튼)의 색을 위젯에서 가져와 테마를 따릅니다. `--iseul-quote-color`는 배지와 형광펜(기본 `--iseul-accent`), `--iseul-quote-ink`는 배지 글자(기본 흰색), `--iseul-quote-surface`는 팝업 배경(기본: 위젯 뒤의 배경색)입니다. 팝업 글자와 인용 버튼은 위젯의 글자색을 씁니다. 더 바꾸려면 `.iseul-quote-mark`, `.iseul-quote-list`, `.iseul-quote-pick`, `::highlight(iseul-quote)`를 직접 덮어쓰세요.
+
 ## 데이터
 
-댓글 한 줄에는 글 키, 닉네임, 내용, 반응, 시각, 비밀번호 해시가 담깁니다. iseul은 행을 지우지 않습니다. 만료되거나 작성자·관리자가 지운 댓글은 공개 API에서만 숨겨지고, 삭제는 `deleted_at`·`deleted_by`로 기록됩니다. 오래된 기록을 지우려면 D1에 직접 SQL을 실행하세요.
+댓글 한 줄에는 글 키, 닉네임, 내용, 반응, 인용한 문장(있으면), 시각, 비밀번호 해시가 담깁니다. iseul은 행을 지우지 않습니다. 만료되거나 작성자·관리자가 지운 댓글은 공개 API에서만 숨겨지고, 삭제는 `deleted_at`·`deleted_by`로 기록됩니다. 오래된 기록을 지우려면 D1에 직접 SQL을 실행하세요.
+
+## 업그레이드
+
+새 마이그레이션을 먼저 적용하고 새 버전을 배포하세요. 새 코드는 열이 없는 DB에서 실패하지만, 예전 코드는 마이그레이션된 DB에서도 그대로 동작합니다.
+
+```sh
+npx wrangler d1 migrations apply DB --remote
+```
+
+`migrations_dir` 대신 `d1 execute --file`로 테이블을 만들었다면 아직 실행하지 않은 파일만 실행하고, 계속 그 방식으로 하세요(0.2.0은 `migrations/0002_quote.sql` 추가). `migrations apply`는 손으로 실행한 파일을 모르고 다시 실행합니다. Deploy to Cloudflare 템플릿은 배포할 때마다 마이그레이션을 적용합니다.
 
 ## 개발
 
@@ -210,6 +229,7 @@ npm test   # Node 22.5 이상 (node:sqlite로 실제 스키마와 SQL 실행)
 
 cd example # 항상 통과하는 Cloudflare Turnstile 테스트 키를 쓰는 로컬 Worker
 npx wrangler d1 execute iseul --local --file ../migrations/0001_init.sql
+npx wrangler d1 execute iseul --local --file ../migrations/0002_quote.sql
 npx wrangler dev   # http://localhost:8787/example/ 와 /example/admin (토큰: dev-admin-token)
 ```
 
